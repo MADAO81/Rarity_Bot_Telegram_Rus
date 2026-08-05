@@ -206,3 +206,4 @@ MIT License — свободное использование с указани�
 ```bash
 git clone https://github.com/MADAO81/Rarity_Bot_Telegram_Rus.git
 cd Rarity_Bot_Telegram_Rus
+
