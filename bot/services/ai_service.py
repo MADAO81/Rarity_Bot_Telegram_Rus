@@ -1,9 +1,17 @@
+"""
+AI сервис для бота Рарити.
+Гибридный режим: DeepSeek (текст + рассылки) + OpenAI (картинки + голос).
+
+Автор: MADAO81
+Версия: 2.0 — DeepSeek для рассылок и команд
+"""
+
 import logging
 import base64
 import os
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, List, Dict, Any
 from openai import AsyncOpenAI
 from bot.config import Config
 from bot.core.constants import SYSTEM_PROMPT
@@ -16,7 +24,7 @@ async def get_rarity_response(
     mood_description: str = "happy",
     context_history: Optional[List[Dict]] = None
 ) -> Optional[str]:
-    """Generates a response from Rarity using DeepSeek."""
+    """Генерирует ответ от Рарити через DeepSeek."""
     try:
         client = AsyncOpenAI(
             api_key=Config.PROXY_API_KEY,
@@ -58,13 +66,76 @@ async def get_rarity_response(
         return None
 
 
-# === ФУНКЦИЯ АНАЛИЗА КАРТИНОК (с русским языком) ===
+# === ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ РАССЫЛОК ===
+async def get_daily_inspiration() -> Optional[str]:
+    """Генерирует вдохновляющую фразу на РУССКОМ языке через DeepSeek."""
+    try:
+        client = AsyncOpenAI(
+            api_key=Config.PROXY_API_KEY,
+            base_url="https://api.proxyapi.ru/openrouter/v1"
+        )
+
+        prompt = "Придумай короткую, вдохновляющую фразу о красоте, творчестве или гармонии. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой."
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = await client.chat.completions.create(
+            model=Config.DEEPSEEK_MODEL,
+            messages=messages,
+            max_tokens=200,
+            temperature=0.9,
+            timeout=30.0
+        )
+
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content.strip()
+        return None
+
+    except Exception as e:
+        logger.error(f"❌ Daily inspiration error: {e}")
+        return None
+
+
+async def get_daily_tip() -> Optional[str]:
+    """Генерирует совет по рукоделию на РУССКОМ языке через DeepSeek."""
+    try:
+        client = AsyncOpenAI(
+            api_key=Config.PROXY_API_KEY,
+            base_url="https://api.proxyapi.ru/openrouter/v1"
+        )
+
+        prompt = "Дай короткий, полезный совет по рукоделию, стилю или ремонту одежды. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой."
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = await client.chat.completions.create(
+            model=Config.DEEPSEEK_MODEL,
+            messages=messages,
+            max_tokens=300,
+            temperature=0.9,
+            timeout=30.0
+        )
+
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content.strip()
+        return None
+
+    except Exception as e:
+        logger.error(f"❌ Daily tip error: {e}")
+        return None
+
+
+# === ФУНКЦИЯ АНАЛИЗА КАРТИНОК (OpenAI Vision) ===
 async def analyze_image(
     image_data: bytes,
     user_message: Optional[str] = None,
     mood_description: str = "happy"
 ) -> Optional[str]:
-    """Analyzes an image using OpenAI Vision API (отвечает на русском)."""
+    """Analyzes an image using OpenAI Vision API."""
     logger.info("🖼️ Request to OpenAI Vision API...")
     try:
         client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
@@ -72,9 +143,6 @@ async def analyze_image(
         system_prompt = SYSTEM_PROMPT
         if mood_description == "sad":
             system_prompt += "\n\nYou are in a sad mood, but still trying to be kind."
-        
-        # ЯВНО указываем русский язык
-        system_prompt += "\n\nIMPORTANT: Always respond in Russian language."
 
         base64_image = base64.b64encode(image_data).decode('utf-8')
 
@@ -88,7 +156,7 @@ async def analyze_image(
                 "content": [
                     {
                         "type": "text",
-                        "text": f"User sent an image. {user_message if user_message else 'Describe what you see in the image and comment on it in your style.'} Ответь на русском языке."
+                        "text": f"User sent an image. {user_message if user_message else 'Describe what you see in the image and comment on it in your style.'} ОТВЕЧАЙ НА РУССКОМ ЯЗЫКЕ."
                     },
                     {
                         "type": "image_url",
