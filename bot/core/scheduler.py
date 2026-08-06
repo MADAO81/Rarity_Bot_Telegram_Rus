@@ -3,7 +3,7 @@
 Отправка вдохновения в 9:30 и совета дня в 18:00.
 
 Автор: MADAO81
-Версия: 2.0 — DeepSeek для рассылок
+Версия: 2.1 — разбивка длинных сообщений
 """
 
 import logging
@@ -91,6 +91,7 @@ async def unsubscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def send_long_message(bot, chat_id: int, text: str, parse_mode: str = "Markdown"):
+    """Отправляет длинное сообщение, разбивая на части."""
     if not text:
         return
 
