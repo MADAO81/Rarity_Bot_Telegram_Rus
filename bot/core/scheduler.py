@@ -3,7 +3,7 @@
 Отправка вдохновения в 9:30 и совета дня в 18:00.
 
 Автор: MADAO81
-Версия: 2.1 — разбивка длинных сообщений
+Версия: 2.2 — разбивка длинных сообщений
 """
 
 import logging
@@ -105,7 +105,8 @@ async def send_long_message(bot, chat_id: int, text: str, parse_mode: str = "Mar
         if len(current_part) + len(paragraph) + 1 < 4000:
             current_part += paragraph + '\n'
         else:
-            parts.append(current_part.strip())
+            if current_part:
+                parts.append(current_part.strip())
             current_part = paragraph + '\n'
     if current_part:
         parts.append(current_part.strip())
