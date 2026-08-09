@@ -3,7 +3,7 @@ AI сервис для бота Рарити.
 Гибридный режим: DeepSeek (текст + рассылки) + OpenAI (картинки + голос).
 
 Автор: MADAO81
-Версия: 2.0 — DeepSeek для рассылок и команд
+Версия: 2.1 — увеличен max_tokens для рассылок
 """
 
 import logging
@@ -24,7 +24,6 @@ async def get_rarity_response(
     mood_description: str = "happy",
     context_history: Optional[List[Dict]] = None
 ) -> Optional[str]:
-    """Генерирует ответ от Рарити через DeepSeek."""
     try:
         client = AsyncOpenAI(
             api_key=Config.PROXY_API_KEY,
@@ -57,56 +56,21 @@ async def get_rarity_response(
 
         if response.choices and len(response.choices) > 0:
             return response.choices[0].message.content.strip()
-        else:
-            logger.warning("⚠️ DeepSeek returned empty response")
-            return None
+        return None
 
     except Exception as e:
         logger.error(f"❌ Error calling DeepSeek: {e}")
         return None
 
 
-# === ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНЫХ РАССЫЛОК ===
 async def get_daily_inspiration() -> Optional[str]:
-    """Генерирует вдохновляющую фразу на РУССКОМ языке через DeepSeek."""
     try:
         client = AsyncOpenAI(
             api_key=Config.PROXY_API_KEY,
             base_url="https://api.proxyapi.ru/openrouter/v1"
         )
 
-        prompt = "Придумай короткую, вдохновляющую фразу о красоте, творчестве или гармонии. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой."
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ]
-
-        response = await client.chat.completions.create(
-            model=Config.DEEPSEEK_MODEL,
-            messages=messages,
-            max_tokens=200,
-            temperature=0.9,
-            timeout=30.0
-        )
-
-        if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content.strip()
-        return None
-
-    except Exception as e:
-        logger.error(f"❌ Daily inspiration error: {e}")
-        return None
-
-
-async def get_daily_tip() -> Optional[str]:
-    """Генерирует совет по рукоделию на РУССКОМ языке через DeepSeek."""
-    try:
-        client = AsyncOpenAI(
-            api_key=Config.PROXY_API_KEY,
-            base_url="https://api.proxyapi.ru/openrouter/v1"
-        )
-
-        prompt = "Дай короткий, полезный совет по рукоделию, стилю или ремонту одежды. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой."
+        prompt = "Придумай короткую, вдохновляющую фразу о красоте, творчестве или гармонии. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой. Ответ должен быть не слишком длинным — 3-4 предложения."
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
@@ -125,17 +89,45 @@ async def get_daily_tip() -> Optional[str]:
         return None
 
     except Exception as e:
+        logger.error(f"❌ Daily inspiration error: {e}")
+        return None
+
+
+async def get_daily_tip() -> Optional[str]:
+    try:
+        client = AsyncOpenAI(
+            api_key=Config.PROXY_API_KEY,
+            base_url="https://api.proxyapi.ru/openrouter/v1"
+        )
+
+        prompt = "Дай короткий, полезный совет по рукоделию, стилю или ремонту одежды. ОБЯЗАТЕЛЬНО на русском языке. Говори как Рарити — изящно и с душой. Ответ должен быть не слишком длинным — 4-5 предложений."
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = await client.chat.completions.create(
+            model=Config.DEEPSEEK_MODEL,
+            messages=messages,
+            max_tokens=500,  # Увеличено с 300 до 500
+            temperature=0.9,
+            timeout=30.0
+        )
+
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content.strip()
+        return None
+
+    except Exception as e:
         logger.error(f"❌ Daily tip error: {e}")
         return None
 
 
-# === ФУНКЦИЯ АНАЛИЗА КАРТИНОК (OpenAI Vision) ===
 async def analyze_image(
     image_data: bytes,
     user_message: Optional[str] = None,
     mood_description: str = "happy"
 ) -> Optional[str]:
-    """Analyzes an image using OpenAI Vision API."""
     logger.info("🖼️ Request to OpenAI Vision API...")
     try:
         client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
@@ -180,9 +172,7 @@ async def analyze_image(
 
         if response.choices and len(response.choices) > 0:
             return response.choices[0].message.content.strip()
-        else:
-            logger.warning("⚠️ Vision API returned empty response")
-            return None
+        return None
 
     except Exception as e:
         logger.error(f"❌ Error analyzing image: {e}")
@@ -190,7 +180,6 @@ async def analyze_image(
 
 
 async def generate_image(prompt: str) -> Optional[str]:
-    """Generates an image using DALL-E."""
     try:
         client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
         logger.info(f"🎨 Generating image: {prompt[:50]}...")
@@ -213,7 +202,6 @@ async def transcribe_audio(
     audio_data: bytes,
     file_extension: str = ".ogg"
 ) -> Optional[str]:
-    """Transcribes audio using OpenAI Whisper."""
     try:
         client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
 
@@ -241,9 +229,7 @@ async def transcribe_audio(
         if transcription and transcription.text:
             logger.info(f"✅ Transcription successful: {transcription.text[:50]}...")
             return transcription.text.strip()
-        else:
-            logger.warning("⚠️ Whisper returned empty response")
-            return None
+        return None
 
     except Exception as e:
         logger.error(f"❌ Error transcribing audio: {e}")
